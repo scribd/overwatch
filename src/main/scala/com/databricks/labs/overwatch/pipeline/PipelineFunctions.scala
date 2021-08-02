@@ -1,12 +1,14 @@
 package com.databricks.labs.overwatch.pipeline
 
+import com.databricks.labs.overwatch.ApiCall
 import com.databricks.labs.overwatch.utils.Frequency.Frequency
-import com.databricks.labs.overwatch.utils.{Config, Frequency, IncrementalFilter}
+import com.databricks.labs.overwatch.utils.{ApiEnv, Config, Frequency, IncrementalFilter, JsonUtils}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Column, DataFrame, Row, SparkSession}
+
 import java.net.URI
 
 object PipelineFunctions {

@@ -1,7 +1,7 @@
 package com.databricks.labs.overwatch.env
 
 import com.databricks.labs.overwatch.ApiCall
-import com.databricks.labs.overwatch.utils.{ApiEnv, Config, SparkSessionWrapper}
+import com.databricks.labs.overwatch.utils.{ApiEnv, Config, JsonUtils, SparkSessionWrapper}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
@@ -17,6 +17,7 @@ class Workspace(config: Config) extends SparkSessionWrapper {
 
   private val logger: Logger = Logger.getLogger(this.getClass)
   private var _database: Database = _
+  private[overwatch] val overwatchRunClusterId = spark.conf.get("spark.databricks.clusterUsageTags.clusterId")
 
   private[overwatch] def database: Database = _database
 
@@ -120,10 +121,28 @@ class Workspace(config: Config) extends SparkSessionWrapper {
       .withColumn("organization_id", lit(config.organizationId))
   }
 
+  private def clusterState(apiEnv: ApiEnv): String = {
+    val endpoint = "clusters/get"
+    val query = Map(
+      "cluster_id" -> overwatchRunClusterId
+    )
+    try {
+      val stateJsonString = ApiCall(endpoint, apiEnv, Some(query)).executeGet().asStrings.head
+      JsonUtils.defaultObjectMapper.readTree(stateJsonString).get("state").asText()
+    } catch {
+      case e: Throwable => {
+        val msg = s"Cluster State Error: Cannot determine state of cluster: $overwatchRunClusterId\n$e"
+        logger.log(Level.ERROR, msg, e)
+        if(config.debugFlag) println(msg)
+        "ERROR"
+      }
+    }
+  }
+
   def resizeCluster(apiEnv: ApiEnv, numWorkers: Int): Unit = {
     val endpoint = "clusters/resize"
     val query = Map(
-      "cluster_id" -> spark.conf.get("spark.databricks.clusterUsageTags.clusterId"),
+      "cluster_id" -> overwatchRunClusterId,
       "num_workers" -> numWorkers
     )
 
